@@ -1,18 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Edit, Trash2, Eye } from 'lucide-react';
-import { Client } from '../../types';
+import { Plus, Search, Edit, Trash2, Truck } from 'lucide-react';
+import { Supplier } from '../../types';
 import Table from '../../components/ui/Table';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 
-const Clients: React.FC = () => {
-  const navigate = useNavigate();
-  const [clients, setClients] = useState<Client[]>([]);
+const Suppliers: React.FC = () => {
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     tax_id: '',
@@ -26,53 +24,53 @@ const Clients: React.FC = () => {
   });
 
   useEffect(() => {
-    loadClients();
+    loadSuppliers();
   }, []);
 
-  const loadClients = async () => {
+  const loadSuppliers = async () => {
     try {
-      const data = await window.database.getClients();
-      setClients(data);
+      const data = await window.database.getSuppliers();
+      setSuppliers(data);
     } catch (error) {
-      console.error('Failed to load clients:', error);
+      console.error('Failed to load suppliers:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateClient = async (e: React.FormEvent) => {
+  const handleCreateSupplier = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await window.database.createClient(formData);
-      await loadClients();
+      await window.database.createSupplier(formData);
+      await loadSuppliers();
       setShowCreateModal(false);
       resetForm();
     } catch (error) {
-      console.error('Failed to create client:', error);
+      console.error('Failed to create supplier:', error);
     }
   };
 
-  const handleUpdateClient = async (e: React.FormEvent) => {
+  const handleUpdateSupplier = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingClient) return;
+    if (!editingSupplier) return;
     
     try {
-      await window.database.updateClient({ ...editingClient, ...formData });
-      await loadClients();
-      setEditingClient(null);
+      await window.database.updateSupplier({ ...editingSupplier, ...formData });
+      await loadSuppliers();
+      setEditingSupplier(null);
       resetForm();
     } catch (error) {
-      console.error('Failed to update client:', error);
+      console.error('Failed to update supplier:', error);
     }
   };
 
-  const handleDeleteClient = async (client: Client) => {
-    if (window.confirm(`¿Está seguro de que desea eliminar el cliente "${client.name}"?`)) {
+  const handleDeleteSupplier = async (supplier: Supplier) => {
+    if (window.confirm(`¿Está seguro de que desea eliminar el proveedor "${supplier.name}"?`)) {
       try {
-        await window.database.deleteClient(client.id);
-        await loadClients();
+        await window.database.deleteSupplier(supplier.id);
+        await loadSuppliers();
       } catch (error) {
-        console.error('Failed to delete client:', error);
+        console.error('Failed to delete supplier:', error);
       }
     }
   };
@@ -91,32 +89,32 @@ const Clients: React.FC = () => {
     });
   };
 
-  const openEditModal = (client: Client) => {
-    setEditingClient(client);
+  const openEditModal = (supplier: Supplier) => {
+    setEditingSupplier(supplier);
     setFormData({
-      name: client.name,
-      tax_id: client.tax_id || '',
-      address: client.address || '',
-      city: client.city || '',
-      postal_code: client.postal_code || '',
-      phone: client.phone || '',
-      email: client.email || '',
-      contact_person: client.contact_person || '',
-      notes: client.notes || '',
+      name: supplier.name,
+      tax_id: supplier.tax_id || '',
+      address: supplier.address || '',
+      city: supplier.city || '',
+      postal_code: supplier.postal_code || '',
+      phone: supplier.phone || '',
+      email: supplier.email || '',
+      contact_person: supplier.contact_person || '',
+      notes: supplier.notes || '',
     });
   };
 
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.tax_id?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredSuppliers = suppliers.filter(supplier =>
+    supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    supplier.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    supplier.tax_id?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const columns = [
     {
       key: 'name',
       title: 'Nombre',
-      render: (value: string, record: Client) => (
+      render: (value: string, record: Supplier) => (
         <div>
           <div className="font-medium">{value}</div>
           {record.contact_person && (
@@ -144,18 +142,8 @@ const Clients: React.FC = () => {
     {
       key: 'actions',
       title: 'Acciones',
-      render: (value: any, record: Client) => (
+      render: (value: any, record: Supplier) => (
         <div className="flex space-x-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/clients/${record.id}`);
-            }}
-            className="text-blue-600 hover:text-blue-800"
-            title="Ver detalles"
-          >
-            <Eye size={16} />
-          </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -169,7 +157,7 @@ const Clients: React.FC = () => {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              handleDeleteClient(record);
+              handleDeleteSupplier(record);
             }}
             className="text-red-600 hover:text-red-800"
             title="Eliminar"
@@ -178,11 +166,11 @@ const Clients: React.FC = () => {
           </button>
         </div>
       ),
-      width: '120px',
+      width: '100px',
     },
   ];
 
-  const ClientForm = ({ onSubmit, isEditing }: { onSubmit: (e: React.FormEvent) => void; isEditing: boolean }) => (
+  const SupplierForm = ({ onSubmit, isEditing }: { onSubmit: (e: React.FormEvent) => void; isEditing: boolean }) => (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -301,7 +289,7 @@ const Clients: React.FC = () => {
           variant="secondary"
           onClick={() => {
             if (isEditing) {
-              setEditingClient(null);
+              setEditingSupplier(null);
             } else {
               setShowCreateModal(false);
             }
@@ -311,7 +299,7 @@ const Clients: React.FC = () => {
           Cancelar
         </Button>
         <Button type="submit">
-          {isEditing ? 'Actualizar' : 'Crear'} Cliente
+          {isEditing ? 'Actualizar' : 'Crear'} Proveedor
         </Button>
       </div>
     </form>
@@ -320,9 +308,9 @@ const Clients: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-gray-800">Clientes</h1>
+        <h1 className="text-2xl font-semibold text-gray-800">Proveedores</h1>
         <Button icon={Plus} onClick={() => setShowCreateModal(true)}>
-          Nuevo Cliente
+          Nuevo Proveedor
         </Button>
       </div>
 
@@ -331,7 +319,7 @@ const Clients: React.FC = () => {
           <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Buscar clientes..."
+            placeholder="Buscar proveedores..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
@@ -341,9 +329,8 @@ const Clients: React.FC = () => {
 
       <Table
         columns={columns}
-        data={filteredClients}
+        data={filteredSuppliers}
         loading={loading}
-        onRowClick={(client) => navigate(`/clients/${client.id}`)}
       />
 
       <Modal
@@ -352,25 +339,25 @@ const Clients: React.FC = () => {
           setShowCreateModal(false);
           resetForm();
         }}
-        title="Nuevo Cliente"
+        title="Nuevo Proveedor"
         size="lg"
       >
-        <ClientForm onSubmit={handleCreateClient} isEditing={false} />
+        <SupplierForm onSubmit={handleCreateSupplier} isEditing={false} />
       </Modal>
 
       <Modal
-        isOpen={!!editingClient}
+        isOpen={!!editingSupplier}
         onClose={() => {
-          setEditingClient(null);
+          setEditingSupplier(null);
           resetForm();
         }}
-        title="Editar Cliente"
+        title="Editar Proveedor"
         size="lg"
       >
-        <ClientForm onSubmit={handleUpdateClient} isEditing={true} />
+        <SupplierForm onSubmit={handleUpdateSupplier} isEditing={true} />
       </Modal>
     </div>
   );
 };
 
-export default Clients;
+export default Suppliers;

@@ -1,161 +1,157 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Edit, Trash2, Eye } from 'lucide-react';
-import { Client } from '../../types';
+import { Plus, Search, Edit, Trash2, Package } from 'lucide-react';
+import { Material, Supplier } from '../../types';
 import Table from '../../components/ui/Table';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 
-const Clients: React.FC = () => {
-  const navigate = useNavigate();
-  const [clients, setClients] = useState<Client[]>([]);
+const Materials: React.FC = () => {
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [formData, setFormData] = useState({
+    supplier_id: '',
+    code: '',
     name: '',
-    tax_id: '',
-    address: '',
-    city: '',
-    postal_code: '',
-    phone: '',
-    email: '',
-    contact_person: '',
+    description: '',
+    purchase_price: 0,
+    unit: '',
     notes: '',
   });
 
   useEffect(() => {
-    loadClients();
+    loadData();
   }, []);
 
-  const loadClients = async () => {
+  const loadData = async () => {
     try {
-      const data = await window.database.getClients();
-      setClients(data);
+      const [materialsData, suppliersData] = await Promise.all([
+        window.database.getMaterials(),
+        window.database.getSuppliers(),
+      ]);
+      setMaterials(materialsData);
+      setSuppliers(suppliersData);
     } catch (error) {
-      console.error('Failed to load clients:', error);
+      console.error('Failed to load data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateClient = async (e: React.FormEvent) => {
+  const handleCreateMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await window.database.createClient(formData);
-      await loadClients();
+      await window.database.createMaterial(formData);
+      await loadData();
       setShowCreateModal(false);
       resetForm();
     } catch (error) {
-      console.error('Failed to create client:', error);
+      console.error('Failed to create material:', error);
     }
   };
 
-  const handleUpdateClient = async (e: React.FormEvent) => {
+  const handleUpdateMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingClient) return;
+    if (!editingMaterial) return;
     
     try {
-      await window.database.updateClient({ ...editingClient, ...formData });
-      await loadClients();
-      setEditingClient(null);
+      await window.database.updateMaterial({ ...editingMaterial, ...formData });
+      await loadData();
+      setEditingMaterial(null);
       resetForm();
     } catch (error) {
-      console.error('Failed to update client:', error);
+      console.error('Failed to update material:', error);
     }
   };
 
-  const handleDeleteClient = async (client: Client) => {
-    if (window.confirm(`¿Está seguro de que desea eliminar el cliente "${client.name}"?`)) {
+  const handleDeleteMaterial = async (material: Material) => {
+    if (window.confirm(`¿Está seguro de que desea eliminar el material "${material.name}"?`)) {
       try {
-        await window.database.deleteClient(client.id);
-        await loadClients();
+        await window.database.deleteMaterial(material.id);
+        await loadData();
       } catch (error) {
-        console.error('Failed to delete client:', error);
+        console.error('Failed to delete material:', error);
       }
     }
   };
 
   const resetForm = () => {
     setFormData({
+      supplier_id: '',
+      code: '',
       name: '',
-      tax_id: '',
-      address: '',
-      city: '',
-      postal_code: '',
-      phone: '',
-      email: '',
-      contact_person: '',
+      description: '',
+      purchase_price: 0,
+      unit: '',
       notes: '',
     });
   };
 
-  const openEditModal = (client: Client) => {
-    setEditingClient(client);
+  const openEditModal = (material: Material) => {
+    setEditingMaterial(material);
     setFormData({
-      name: client.name,
-      tax_id: client.tax_id || '',
-      address: client.address || '',
-      city: client.city || '',
-      postal_code: client.postal_code || '',
-      phone: client.phone || '',
-      email: client.email || '',
-      contact_person: client.contact_person || '',
-      notes: client.notes || '',
+      supplier_id: material.supplier_id || '',
+      code: material.code || '',
+      name: material.name,
+      description: material.description || '',
+      purchase_price: material.purchase_price || 0,
+      unit: material.unit || '',
+      notes: material.notes || '',
     });
   };
 
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.tax_id?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredMaterials = materials.filter(material =>
+    material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    material.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    material.supplier_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const columns = [
     {
+      key: 'code',
+      title: 'Código',
+      render: (value: string) => value || '-',
+    },
+    {
       key: 'name',
       title: 'Nombre',
-      render: (value: string, record: Client) => (
+      render: (value: string, record: Material) => (
         <div>
           <div className="font-medium">{value}</div>
-          {record.contact_person && (
-            <div className="text-sm text-gray-500">{record.contact_person}</div>
+          {record.description && (
+            <div className="text-sm text-gray-500">{record.description}</div>
           )}
         </div>
       ),
     },
     {
-      key: 'tax_id',
-      title: 'CIF/NIF',
+      key: 'supplier_name',
+      title: 'Proveedor',
+      render: (value: string) => value || '-',
     },
     {
-      key: 'email',
-      title: 'Email',
+      key: 'purchase_price',
+      title: 'Precio',
+      render: (value: number, record: Material) => (
+        <div>
+          {value ? `${value.toFixed(2)} €` : '-'}
+          {record.unit && <div className="text-sm text-gray-500">por {record.unit}</div>}
+        </div>
+      ),
     },
     {
-      key: 'phone',
-      title: 'Teléfono',
-    },
-    {
-      key: 'city',
-      title: 'Ciudad',
+      key: 'unit',
+      title: 'Unidad',
+      render: (value: string) => value || '-',
     },
     {
       key: 'actions',
       title: 'Acciones',
-      render: (value: any, record: Client) => (
+      render: (value: any, record: Material) => (
         <div className="flex space-x-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/clients/${record.id}`);
-            }}
-            className="text-blue-600 hover:text-blue-800"
-            title="Ver detalles"
-          >
-            <Eye size={16} />
-          </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -169,7 +165,7 @@ const Clients: React.FC = () => {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              handleDeleteClient(record);
+              handleDeleteMaterial(record);
             }}
             className="text-red-600 hover:text-red-800"
             title="Eliminar"
@@ -178,14 +174,44 @@ const Clients: React.FC = () => {
           </button>
         </div>
       ),
-      width: '120px',
+      width: '100px',
     },
   ];
 
-  const ClientForm = ({ onSubmit, isEditing }: { onSubmit: (e: React.FormEvent) => void; isEditing: boolean }) => (
+  const MaterialForm = ({ onSubmit, isEditing }: { onSubmit: (e: React.FormEvent) => void; isEditing: boolean }) => (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Proveedor
+          </label>
+          <select
+            value={formData.supplier_id}
+            onChange={(e) => setFormData({ ...formData, supplier_id: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
+          >
+            <option value="">Sin proveedor</option>
+            {suppliers.map((supplier) => (
+              <option key={supplier.id} value={supplier.id}>
+                {supplier.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Código
+          </label>
+          <input
+            type="text"
+            value={formData.code}
+            onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
+          />
+        </div>
+        
+        <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Nombre *
           </label>
@@ -198,86 +224,41 @@ const Clients: React.FC = () => {
           />
         </div>
         
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            CIF/NIF
-          </label>
-          <input
-            type="text"
-            value={formData.tax_id}
-            onChange={(e) => setFormData({ ...formData, tax_id: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
-          />
-        </div>
-        
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Dirección
+            Descripción
           </label>
-          <input
-            type="text"
-            value={formData.address}
-            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+          <textarea
+            rows={2}
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
           />
         </div>
         
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Ciudad
+            Precio de compra
           </label>
           <input
-            type="text"
-            value={formData.city}
-            onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+            type="number"
+            min="0"
+            step="0.01"
+            value={formData.purchase_price}
+            onChange={(e) => setFormData({ ...formData, purchase_price: parseFloat(e.target.value) || 0 })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
           />
         </div>
         
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Código postal
+            Unidad
           </label>
           <input
             type="text"
-            value={formData.postal_code}
-            onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Teléfono
-          </label>
-          <input
-            type="tel"
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Email
-          </label>
-          <input
-            type="email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
-          />
-        </div>
-        
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Persona de contacto
-          </label>
-          <input
-            type="text"
-            value={formData.contact_person}
-            onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
+            value={formData.unit}
+            onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+            placeholder="ej: m², kg, ud"
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
           />
         </div>
@@ -287,7 +268,7 @@ const Clients: React.FC = () => {
             Notas
           </label>
           <textarea
-            rows={3}
+            rows={2}
             value={formData.notes}
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
@@ -301,7 +282,7 @@ const Clients: React.FC = () => {
           variant="secondary"
           onClick={() => {
             if (isEditing) {
-              setEditingClient(null);
+              setEditingMaterial(null);
             } else {
               setShowCreateModal(false);
             }
@@ -311,7 +292,7 @@ const Clients: React.FC = () => {
           Cancelar
         </Button>
         <Button type="submit">
-          {isEditing ? 'Actualizar' : 'Crear'} Cliente
+          {isEditing ? 'Actualizar' : 'Crear'} Material
         </Button>
       </div>
     </form>
@@ -320,9 +301,9 @@ const Clients: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-gray-800">Clientes</h1>
+        <h1 className="text-2xl font-semibold text-gray-800">Materiales</h1>
         <Button icon={Plus} onClick={() => setShowCreateModal(true)}>
-          Nuevo Cliente
+          Nuevo Material
         </Button>
       </div>
 
@@ -331,7 +312,7 @@ const Clients: React.FC = () => {
           <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Buscar clientes..."
+            placeholder="Buscar materiales..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
@@ -341,9 +322,8 @@ const Clients: React.FC = () => {
 
       <Table
         columns={columns}
-        data={filteredClients}
+        data={filteredMaterials}
         loading={loading}
-        onRowClick={(client) => navigate(`/clients/${client.id}`)}
       />
 
       <Modal
@@ -352,25 +332,25 @@ const Clients: React.FC = () => {
           setShowCreateModal(false);
           resetForm();
         }}
-        title="Nuevo Cliente"
+        title="Nuevo Material"
         size="lg"
       >
-        <ClientForm onSubmit={handleCreateClient} isEditing={false} />
+        <MaterialForm onSubmit={handleCreateMaterial} isEditing={false} />
       </Modal>
 
       <Modal
-        isOpen={!!editingClient}
+        isOpen={!!editingMaterial}
         onClose={() => {
-          setEditingClient(null);
+          setEditingMaterial(null);
           resetForm();
         }}
-        title="Editar Cliente"
+        title="Editar Material"
         size="lg"
       >
-        <ClientForm onSubmit={handleUpdateClient} isEditing={true} />
+        <MaterialForm onSubmit={handleUpdateMaterial} isEditing={true} />
       </Modal>
     </div>
   );
 };
 
-export default Clients;
+export default Materials;

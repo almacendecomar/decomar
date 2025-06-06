@@ -1,155 +1,188 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Edit, Trash2, Eye } from 'lucide-react';
-import { Client } from '../../types';
+import { Plus, Search, Edit, Trash2, Eye, Calendar } from 'lucide-react';
+import { Project, Client } from '../../types';
 import Table from '../../components/ui/Table';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 
-const Clients: React.FC = () => {
+const Projects: React.FC = () => {
   const navigate = useNavigate();
+  const [projects, setProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [formData, setFormData] = useState({
+    client_id: '',
     name: '',
-    tax_id: '',
     address: '',
-    city: '',
-    postal_code: '',
-    phone: '',
-    email: '',
-    contact_person: '',
+    type: '',
+    start_date: '',
+    expected_end_date: '',
+    status: 'pending' as const,
     notes: '',
   });
 
   useEffect(() => {
-    loadClients();
+    loadData();
   }, []);
 
-  const loadClients = async () => {
+  const loadData = async () => {
     try {
-      const data = await window.database.getClients();
-      setClients(data);
+      const [projectsData, clientsData] = await Promise.all([
+        window.database.getProjects(),
+        window.database.getClients(),
+      ]);
+      setProjects(projectsData);
+      setClients(clientsData);
     } catch (error) {
-      console.error('Failed to load clients:', error);
+      console.error('Failed to load data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateClient = async (e: React.FormEvent) => {
+  const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await window.database.createClient(formData);
-      await loadClients();
+      await window.database.createProject(formData);
+      await loadData();
       setShowCreateModal(false);
       resetForm();
     } catch (error) {
-      console.error('Failed to create client:', error);
+      console.error('Failed to create project:', error);
     }
   };
 
-  const handleUpdateClient = async (e: React.FormEvent) => {
+  const handleUpdateProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingClient) return;
+    if (!editingProject) return;
     
     try {
-      await window.database.updateClient({ ...editingClient, ...formData });
-      await loadClients();
-      setEditingClient(null);
+      await window.database.updateProject({ ...editingProject, ...formData });
+      await loadData();
+      setEditingProject(null);
       resetForm();
     } catch (error) {
-      console.error('Failed to update client:', error);
+      console.error('Failed to update project:', error);
     }
   };
 
-  const handleDeleteClient = async (client: Client) => {
-    if (window.confirm(`¿Está seguro de que desea eliminar el cliente "${client.name}"?`)) {
+  const handleDeleteProject = async (project: Project) => {
+    if (window.confirm(`¿Está seguro de que desea eliminar la obra "${project.name}"?`)) {
       try {
-        await window.database.deleteClient(client.id);
-        await loadClients();
+        await window.database.deleteProject(project.id);
+        await loadData();
       } catch (error) {
-        console.error('Failed to delete client:', error);
+        console.error('Failed to delete project:', error);
       }
     }
   };
 
   const resetForm = () => {
     setFormData({
+      client_id: '',
       name: '',
-      tax_id: '',
       address: '',
-      city: '',
-      postal_code: '',
-      phone: '',
-      email: '',
-      contact_person: '',
+      type: '',
+      start_date: '',
+      expected_end_date: '',
+      status: 'pending',
       notes: '',
     });
   };
 
-  const openEditModal = (client: Client) => {
-    setEditingClient(client);
+  const openEditModal = (project: Project) => {
+    setEditingProject(project);
     setFormData({
-      name: client.name,
-      tax_id: client.tax_id || '',
-      address: client.address || '',
-      city: client.city || '',
-      postal_code: client.postal_code || '',
-      phone: client.phone || '',
-      email: client.email || '',
-      contact_person: client.contact_person || '',
-      notes: client.notes || '',
+      client_id: project.client_id,
+      name: project.name,
+      address: project.address || '',
+      type: project.type || '',
+      start_date: project.start_date || '',
+      expected_end_date: project.expected_end_date || '',
+      status: project.status,
+      notes: project.notes || '',
     });
   };
 
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.tax_id?.toLowerCase().includes(searchTerm.toLowerCase())
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-amber-100 text-amber-800';
+      case 'in_progress': return 'bg-blue-100 text-blue-800';
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'pending': return 'Pendiente';
+      case 'in_progress': return 'En progreso';
+      case 'completed': return 'Completada';
+      case 'cancelled': return 'Cancelada';
+      default: return status;
+    }
+  };
+
+  const filteredProjects = projects.filter(project =>
+    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    project.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    project.address?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const columns = [
     {
       key: 'name',
       title: 'Nombre',
-      render: (value: string, record: Client) => (
+      render: (value: string, record: Project) => (
         <div>
           <div className="font-medium">{value}</div>
-          {record.contact_person && (
-            <div className="text-sm text-gray-500">{record.contact_person}</div>
+          {record.address && (
+            <div className="text-sm text-gray-500">{record.address}</div>
           )}
         </div>
       ),
     },
     {
-      key: 'tax_id',
-      title: 'CIF/NIF',
+      key: 'client_name',
+      title: 'Cliente',
     },
     {
-      key: 'email',
-      title: 'Email',
+      key: 'type',
+      title: 'Tipo',
     },
     {
-      key: 'phone',
-      title: 'Teléfono',
+      key: 'status',
+      title: 'Estado',
+      render: (value: string) => (
+        <span className={`inline-block px-2 py-1 text-xs rounded-full ${getStatusColor(value)}`}>
+          {getStatusText(value)}
+        </span>
+      ),
     },
     {
-      key: 'city',
-      title: 'Ciudad',
+      key: 'start_date',
+      title: 'Fecha inicio',
+      render: (value: string) => value ? new Date(value).toLocaleDateString('es-ES') : '-',
+    },
+    {
+      key: 'expected_end_date',
+      title: 'Fecha fin prevista',
+      render: (value: string) => value ? new Date(value).toLocaleDateString('es-ES') : '-',
     },
     {
       key: 'actions',
       title: 'Acciones',
-      render: (value: any, record: Client) => (
+      render: (value: any, record: Project) => (
         <div className="flex space-x-2">
           <button
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/clients/${record.id}`);
+              navigate(`/projects/${record.id}`);
             }}
             className="text-blue-600 hover:text-blue-800"
             title="Ver detalles"
@@ -169,7 +202,7 @@ const Clients: React.FC = () => {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              handleDeleteClient(record);
+              handleDeleteProject(record);
             }}
             className="text-red-600 hover:text-red-800"
             title="Eliminar"
@@ -182,30 +215,37 @@ const Clients: React.FC = () => {
     },
   ];
 
-  const ClientForm = ({ onSubmit, isEditing }: { onSubmit: (e: React.FormEvent) => void; isEditing: boolean }) => (
+  const ProjectForm = ({ onSubmit, isEditing }: { onSubmit: (e: React.FormEvent) => void; isEditing: boolean }) => (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Nombre *
+            Cliente *
+          </label>
+          <select
+            required
+            value={formData.client_id}
+            onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
+          >
+            <option value="">Seleccionar cliente</option>
+            {clients.map((client) => (
+              <option key={client.id} value={client.id}>
+                {client.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Nombre de la obra *
           </label>
           <input
             type="text"
             required
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            CIF/NIF
-          </label>
-          <input
-            type="text"
-            value={formData.tax_id}
-            onChange={(e) => setFormData({ ...formData, tax_id: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
           />
         </div>
@@ -224,60 +264,58 @@ const Clients: React.FC = () => {
         
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Ciudad
+            Tipo de obra
+          </label>
+          <select
+            value={formData.type}
+            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
+          >
+            <option value="">Seleccionar tipo</option>
+            <option value="reforma">Reforma</option>
+            <option value="nueva_construccion">Nueva construcción</option>
+            <option value="rehabilitacion">Rehabilitación</option>
+            <option value="mantenimiento">Mantenimiento</option>
+            <option value="otros">Otros</option>
+          </select>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Estado
+          </label>
+          <select
+            value={formData.status}
+            onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
+          >
+            <option value="pending">Pendiente</option>
+            <option value="in_progress">En progreso</option>
+            <option value="completed">Completada</option>
+            <option value="cancelled">Cancelada</option>
+          </select>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Fecha de inicio
           </label>
           <input
-            type="text"
-            value={formData.city}
-            onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+            type="date"
+            value={formData.start_date}
+            onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
           />
         </div>
         
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Código postal
+            Fecha fin prevista
           </label>
           <input
-            type="text"
-            value={formData.postal_code}
-            onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Teléfono
-          </label>
-          <input
-            type="tel"
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Email
-          </label>
-          <input
-            type="email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
-          />
-        </div>
-        
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Persona de contacto
-          </label>
-          <input
-            type="text"
-            value={formData.contact_person}
-            onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
+            type="date"
+            value={formData.expected_end_date}
+            onChange={(e) => setFormData({ ...formData, expected_end_date: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
           />
         </div>
@@ -301,7 +339,7 @@ const Clients: React.FC = () => {
           variant="secondary"
           onClick={() => {
             if (isEditing) {
-              setEditingClient(null);
+              setEditingProject(null);
             } else {
               setShowCreateModal(false);
             }
@@ -311,7 +349,7 @@ const Clients: React.FC = () => {
           Cancelar
         </Button>
         <Button type="submit">
-          {isEditing ? 'Actualizar' : 'Crear'} Cliente
+          {isEditing ? 'Actualizar' : 'Crear'} Obra
         </Button>
       </div>
     </form>
@@ -320,9 +358,9 @@ const Clients: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-gray-800">Clientes</h1>
+        <h1 className="text-2xl font-semibold text-gray-800">Obras</h1>
         <Button icon={Plus} onClick={() => setShowCreateModal(true)}>
-          Nuevo Cliente
+          Nueva Obra
         </Button>
       </div>
 
@@ -331,7 +369,7 @@ const Clients: React.FC = () => {
           <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Buscar clientes..."
+            placeholder="Buscar obras..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-transparent"
@@ -341,9 +379,9 @@ const Clients: React.FC = () => {
 
       <Table
         columns={columns}
-        data={filteredClients}
+        data={filteredProjects}
         loading={loading}
-        onRowClick={(client) => navigate(`/clients/${client.id}`)}
+        onRowClick={(project) => navigate(`/projects/${project.id}`)}
       />
 
       <Modal
@@ -352,25 +390,25 @@ const Clients: React.FC = () => {
           setShowCreateModal(false);
           resetForm();
         }}
-        title="Nuevo Cliente"
+        title="Nueva Obra"
         size="lg"
       >
-        <ClientForm onSubmit={handleCreateClient} isEditing={false} />
+        <ProjectForm onSubmit={handleCreateProject} isEditing={false} />
       </Modal>
 
       <Modal
-        isOpen={!!editingClient}
+        isOpen={!!editingProject}
         onClose={() => {
-          setEditingClient(null);
+          setEditingProject(null);
           resetForm();
         }}
-        title="Editar Cliente"
+        title="Editar Obra"
         size="lg"
       >
-        <ClientForm onSubmit={handleUpdateClient} isEditing={true} />
+        <ProjectForm onSubmit={handleUpdateProject} isEditing={true} />
       </Modal>
     </div>
   );
 };
 
-export default Clients;
+export default Projects;
